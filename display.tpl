@@ -2523,4 +2523,57 @@ jQuery("#switchConfigurator").ready(initialize);
     });
 
 </script>
+
+<script>
+// Dodaj przycisk "Konfiguruj kolejny zestaw" na stronie koszyka
+jQuery(document).ready(function() {
+	// Sprawdź czy jesteśmy na stronie koszyka
+	if (window.location.pathname.includes('/koszyk') ||
+	    window.location.pathname.includes('/cart') ||
+	    window.location.pathname.match(/controller=cart/)) {
+
+		console.log('Cart page detected - adding configurator button');
+
+		// Czekaj na załadowanie koszyka
+		setTimeout(function() {
+			// Spróbuj kilka różnych miejsc gdzie dodać przycisk
+
+			// Opcja 1: Po tytule strony koszyka
+			if (jQuery('#main .page-header').length) {
+				jQuery('#main .page-header').after(
+					'<div class="text-center mb-4">' +
+					'<a href="/konfigurator" class="btn btn-primary btn-lg">' +
+					'<i class="material-icons" style="vertical-align: middle;">settings</i> ' +
+					'Konfiguruj kolejny zestaw' +
+					'</a>' +
+					'</div>'
+				);
+				console.log('Button added after page header');
+			}
+			// Opcja 2: W prawym panelu z podsumowaniem (jako backup)
+			else if (jQuery('.cart-grid-right .card-block').first().length) {
+				jQuery('.cart-grid-right .card-block').first().prepend(
+					'<a href="/konfigurator" class="btn btn-primary btn-block mb-3">' +
+					'<i class="material-icons" style="vertical-align: middle;">settings</i> ' +
+					'Konfiguruj kolejny zestaw' +
+					'</a>'
+				);
+				console.log('Button added to cart summary');
+			}
+			// Opcja 3: Na samej górze głównego kontenera (jako ostatni backup)
+			else if (jQuery('#main').length) {
+				jQuery('#main').prepend(
+					'<div class="container text-center mb-4 mt-4">' +
+					'<a href="/konfigurator" class="btn btn-primary btn-lg">' +
+					'<i class="material-icons" style="vertical-align: middle;">settings</i> ' +
+					'Konfiguruj kolejny zestaw' +
+					'</a>' +
+					'</div>'
+				);
+				console.log('Button added to main container');
+			}
+		}, 500); // Czekaj 500ms żeby DOM się załadował
+	}
+});
+</script>
 {/block}
