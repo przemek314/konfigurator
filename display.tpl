@@ -2291,53 +2291,60 @@ function initialize() {
 		rightSideContent.append('<a href="/koszyk" target="_blank" id="ignorePDF" class="show-cart">Zobacz koszyk</a>');
 		rightSideContent.append('<a href="/konfigurator" id="ignorePDF" class="new-config">Nowa konfiguracja</a>');
 
-		// Odśwież koszyk PrestaShop - kilka metod dla pewności
-		try {
-			// Metoda 1: Event PrestaShop
-			if (typeof prestashop !== 'undefined' && prestashop.emit) {
-				prestashop.emit('updateCart', {
-					reason: {
-						idProduct: parseInt(frameData),
-						idProductAttribute: 0,
-						linkAction: 'add-to-cart'
-					}
-				});
-			}
+		// Odśwież koszyk PrestaShop - pobierz aktualne dane i zaktualizuj widget
+		$.ajax({
+			type: 'POST',
+			url: prestashop.urls.base_url + 'index.php?controller=cart',
+			data: {
+				ajax: 1,
+				action: 'refresh'
+			},
+			dataType: 'json',
+			success: function(response) {
+				console.log("Cart refreshed, response:", response);
 
-			// Metoda 2: Odśwież modal koszyka
-			$.ajax({
-				type: 'POST',
-				url: prestashop.urls.base_url + 'module/ps_shoppingcart/ajax',
-				data: {
-					action: 'refresh'
-				},
-				success: function(response) {
-					console.log("Cart modal refreshed");
-					// Trigger PrestaShop cart update event
-					$(document).trigger('updateCart');
+				// Zaktualizuj obiekt prestashop.cart
+				if (response && response.cart) {
+					prestashop.cart = response.cart;
+
+					// Teraz wywołaj event
+					prestashop.emit('updateCart', {
+						reason: {
+							idProduct: parseInt(frameData),
+							idProductAttribute: 0,
+							linkAction: 'add-to-cart'
+						},
+						resp: response
+					});
 				}
-			});
 
-			// Metoda 3: Odśwież licznik w headerze (jeśli istnieje)
-			if ($('.cart-products-count').length) {
-				$.ajax({
-					type: 'GET',
-					url: prestashop.urls.base_url + 'index.php?controller=cart',
-					data: {
-						ajax: 1,
-						action: 'refresh'
-					},
-					dataType: 'json',
-					success: function(response) {
-						if (response.cart && response.cart.products_count) {
-							$('.cart-products-count').text(response.cart.products_count);
-						}
+				// Odśwież licznik produktów w headerze
+				if (response.cart && response.cart.products_count !== undefined) {
+					$('.cart-products-count').text(response.cart.products_count);
+					$('._desktop_cart .cart-products-count').text(response.cart.products_count);
+					$('.blockcart .cart-products-count').text(response.cart.products_count);
+				}
+
+				// Odśwież całkowitą kwotę
+				if (response.cart && response.cart.totals) {
+					$('.cart-total .value').text(response.cart.totals.total.value);
+				}
+			},
+			error: function(xhr, status, error) {
+				console.log("Error refreshing cart, but products were added. Trying alternative method...");
+
+				// Alternatywna metoda - po prostu zaktualizuj licznik bezpośrednio pobierając stronę koszyka
+				$.get(prestashop.urls.base_url + 'index.php?controller=cart', function(html) {
+					var parser = new DOMParser();
+					var doc = parser.parseFromString(html, 'text/html');
+					var count = $(doc).find('.cart-products-count').first().text();
+					if (count) {
+						$('.cart-products-count').text(count);
 					}
+					console.log("Updated cart count from page:", count);
 				});
 			}
-		} catch (e) {
-			console.log("Error refreshing cart:", e);
-		}
+		});
 	  }
 
 	  if(frameData){
