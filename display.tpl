@@ -2263,10 +2263,10 @@ function initialize() {
 	  }else{
 		comment = comment + 'Ramka: '+frameDataData.reference+',\n';
 	  }
-	   boxInserts.each(function () {	
+	   boxInserts.each(function () {
 		  let data = jQuery(this).data();
 		  comment = comment + ' '+data.reference+',';
-		  
+
 	  });
 	  if(orientation == 'horizontal'){
 		  comment = comment + '\n Orientacja: pozioma';
@@ -2281,6 +2281,65 @@ function initialize() {
 		  let productIndex = productsArray.findIndex(item => item.reference == lastIndex);
 		  frameData = productsArray[productIndex].id;
 	  }
+
+	  // Funkcja wyświetlająca komunikat po zakończeniu
+	  function showSuccessMessage() {
+		jQuery('.progress-bar').hide();
+		jQuery('.footer').hide();
+		jQuery('.add-to-cart-button').hide();
+		rightSideContent.append('<p class="mt-4"><b>Produkty zostały dodane do koszyka.</b></p>');
+		rightSideContent.append('<a href="/koszyk" target="_blank" id="ignorePDF" class="show-cart">Zobacz koszyk</a>');
+		rightSideContent.append('<a href="/konfigurator" id="ignorePDF" class="new-config">Nowa konfiguracja</a>');
+
+		// Odśwież koszyk PrestaShop - kilka metod dla pewności
+		try {
+			// Metoda 1: Event PrestaShop
+			if (typeof prestashop !== 'undefined' && prestashop.emit) {
+				prestashop.emit('updateCart', {
+					reason: {
+						idProduct: parseInt(frameData),
+						idProductAttribute: 0,
+						linkAction: 'add-to-cart'
+					}
+				});
+			}
+
+			// Metoda 2: Odśwież modal koszyka
+			$.ajax({
+				type: 'POST',
+				url: prestashop.urls.base_url + 'module/ps_shoppingcart/ajax',
+				data: {
+					action: 'refresh'
+				},
+				success: function(response) {
+					console.log("Cart modal refreshed");
+					// Trigger PrestaShop cart update event
+					$(document).trigger('updateCart');
+				}
+			});
+
+			// Metoda 3: Odśwież licznik w headerze (jeśli istnieje)
+			if ($('.cart-products-count').length) {
+				$.ajax({
+					type: 'GET',
+					url: prestashop.urls.base_url + 'index.php?controller=cart',
+					data: {
+						ajax: 1,
+						action: 'refresh'
+					},
+					dataType: 'json',
+					success: function(response) {
+						if (response.cart && response.cart.products_count) {
+							$('.cart-products-count').text(response.cart.products_count);
+						}
+					}
+				});
+			}
+		} catch (e) {
+			console.log("Error refreshing cart:", e);
+		}
+	  }
+
 	  if(frameData){
 		  $.ajax({
 			type: 'POST',
@@ -2297,24 +2356,21 @@ function initialize() {
 			success: function(response) {
 				if (response.hasError) {
 					console.log("Error adding to cart:", response.errors);
+					alert("Błąd dodawania do koszyka: " + JSON.stringify(response.errors));
 				} else {
-					console.log("Products added successfully:", response);
-					//alert("Products added to cart!");
+					console.log("Frame added successfully:", response);
+
 					let boxInsertsArray = boxInserts.toArray();
 					let completedRequests = 0;
 					let totalRequests = boxInsertsArray.length;
 
-					// Jeśli nie ma dodatkowych produktów, odśwież koszyk od razu
+					// Jeśli nie ma dodatkowych produktów, wyświetl komunikat od razu
 					if (totalRequests === 0) {
-						prestashop.emit('updateCart', {
-							reason: {
-								idProduct: parseInt(frameData),
-								idProductAttribute: 0,
-								linkAction: 'add-to-cart'
-							}
-						});
+						showSuccessMessage();
+						return;
 					}
 
+					// Dodaj pozostałe produkty
 					boxInserts.each(function () {
 					  let product = {
 						  qty:parseInt(multiply),
@@ -2328,56 +2384,30 @@ function initialize() {
 							ajax: 1,
 							action: 'update',
 							add: 1,
-							qty: product.qty,  // Custom flag for clarity
-							id_product: product.id_product // Send as JSON
+							qty: product.qty,
+							id_product: product.id_product
 						},
 						dataType: 'json',
 						success: function(response) {
 							completedRequests++;
 							if (response.hasError) {
-								console.log("Error adding to cart:", response.errors);
+								console.log("Error adding product to cart:", response.errors);
 							} else {
-								console.log("Products added successfully:", response);
-								//alert("Products added to cart!");
+								console.log("Product added successfully:", response);
 							}
 
-							// Odśwież koszyk po dodaniu wszystkich produktów
+							// Po dodaniu wszystkich produktów, wyświetl komunikat
 							if (completedRequests === totalRequests) {
-								prestashop.emit('updateCart', {
-									reason: {
-										idProduct: parseInt(frameData),
-										idProductAttribute: 0,
-										linkAction: 'add-to-cart'
-									}
-								});
-
-								// Opcjonalnie można też odświeżyć cały widget
-								$.ajax({
-									type: 'POST',
-									url: prestashop.urls.base_url + 'index.php?controller=cart',
-									data: {
-										ajax: 1,
-										action: 'refresh'
-									},
-									dataType: 'json',
-									success: function(response) {
-										console.log("Cart refreshed");
-									}
-								});
+								showSuccessMessage();
 							}
 						},
 						error: function(xhr, status, error) {
-							console.log("AJAX Error:", error);
+							console.log("AJAX Error:", xhr, status, error);
 							completedRequests++;
-							// Odśwież koszyk nawet po błędzie
+
+							// Wyświetl komunikat nawet jeśli były błędy
 							if (completedRequests === totalRequests) {
-								prestashop.emit('updateCart', {
-									reason: {
-										idProduct: parseInt(frameData),
-										idProductAttribute: 0,
-										linkAction: 'add-to-cart'
-									}
-								});
+								showSuccessMessage();
 							}
 						}
 					});
@@ -2385,18 +2415,15 @@ function initialize() {
 				}
 			},
 			error: function(xhr, status, error) {
-				console.log("AJAX Error:", error);
+				console.log("AJAX Error adding frame:", xhr, status, error);
+				alert("Błąd podczas dodawania ramki do koszyka. Sprawdź konsolę.");
 			}
 		});
+	  } else {
+		// Jeśli nie ma frameData, wyświetl błąd
+		alert('Błąd: nie wybrano ramki');
 	  }
-	  
-		jQuery('.progress-bar').hide();
-		jQuery('.footer').hide();
-		jQuery('.add-to-cart-button').hide();
-		rightSideContent.append('<p class="mt-4"><b>Produkty zostały dodane do koszyka.</b></p>');
-		rightSideContent.append('<a href="/koszyk" target="_blank" id="ignorePDF" class="show-cart">Zobacz koszyk</a>');
-		rightSideContent.append('<a href="/konfigurator" id="ignorePDF" class="new-config">Nowa konfiguracja</a>');
-		
+
     });
 	const qr = jQuery('<div>').attr('id','qrcode');
 
