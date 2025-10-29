@@ -2300,7 +2300,22 @@ function initialize() {
 				} else {
 					console.log("Products added successfully:", response);
 					//alert("Products added to cart!");
-					boxInserts.each(function () {		  
+					let boxInsertsArray = boxInserts.toArray();
+					let completedRequests = 0;
+					let totalRequests = boxInsertsArray.length;
+
+					// Jeśli nie ma dodatkowych produktów, odśwież koszyk od razu
+					if (totalRequests === 0) {
+						prestashop.emit('updateCart', {
+							reason: {
+								idProduct: parseInt(frameData),
+								idProductAttribute: 0,
+								linkAction: 'add-to-cart'
+							}
+						});
+					}
+
+					boxInserts.each(function () {
 					  let product = {
 						  qty:parseInt(multiply),
 						  id_product: parseInt(jQuery(this).val())
@@ -2318,15 +2333,52 @@ function initialize() {
 						},
 						dataType: 'json',
 						success: function(response) {
+							completedRequests++;
 							if (response.hasError) {
 								console.log("Error adding to cart:", response.errors);
 							} else {
 								console.log("Products added successfully:", response);
 								//alert("Products added to cart!");
 							}
+
+							// Odśwież koszyk po dodaniu wszystkich produktów
+							if (completedRequests === totalRequests) {
+								prestashop.emit('updateCart', {
+									reason: {
+										idProduct: parseInt(frameData),
+										idProductAttribute: 0,
+										linkAction: 'add-to-cart'
+									}
+								});
+
+								// Opcjonalnie można też odświeżyć cały widget
+								$.ajax({
+									type: 'POST',
+									url: prestashop.urls.base_url + 'index.php?controller=cart',
+									data: {
+										ajax: 1,
+										action: 'refresh'
+									},
+									dataType: 'json',
+									success: function(response) {
+										console.log("Cart refreshed");
+									}
+								});
+							}
 						},
 						error: function(xhr, status, error) {
 							console.log("AJAX Error:", error);
+							completedRequests++;
+							// Odśwież koszyk nawet po błędzie
+							if (completedRequests === totalRequests) {
+								prestashop.emit('updateCart', {
+									reason: {
+										idProduct: parseInt(frameData),
+										idProductAttribute: 0,
+										linkAction: 'add-to-cart'
+									}
+								});
+							}
 						}
 					});
 					});
