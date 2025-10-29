@@ -2303,60 +2303,11 @@ function initialize() {
 			success: function(response) {
 				console.log("Cart refreshed, response:", response);
 
-				// PrestaShop 1.7.8 zwraca HTML, musimy sparsować
-				if (response && response.cart_summary_products) {
-					// Parsuj HTML żeby wyciągnąć liczbę produktów
-					var $cartHtml = $(response.cart_summary_products);
-					var productCount = $cartHtml.find('.cart-products-count').text().trim();
-
-					if (!productCount) {
-						// Alternatywnie spróbuj policzyć produkty z listy
-						productCount = $cartHtml.find('.cart-item').length;
-					}
-
-					console.log("Detected product count:", productCount);
-
-					// Zaktualizuj wszystkie liczniki w headerze
-					if (productCount) {
-						$('.cart-products-count').text(productCount);
-						$('._desktop_cart .cart-products-count').text(productCount);
-						$('.blockcart .cart-products-count').text(productCount);
-						$('#_desktop_cart .cart-products-count').text(productCount);
-						$('.shopping-cart .cart-products-count').text(productCount);
-					}
-
-					// Zaktualizuj widget koszyka w headerze (podmień HTML)
-					if ($('.blockcart.cart-preview').length && response.cart_detailed) {
-						$('.blockcart.cart-preview').replaceWith(response.cart_detailed);
-					}
-
-					// Wywołaj event PrestaShop jeśli prestashop.cart istnieje lub stwórz go
-					if (typeof prestashop !== 'undefined') {
-						// Stwórz podstawowy obiekt cart jeśli nie istnieje
-						if (!prestashop.cart) {
-							prestashop.cart = {
-								products: [],
-								products_count: parseInt(productCount) || 0
-							};
-						} else {
-							prestashop.cart.products_count = parseInt(productCount) || 0;
-						}
-
-						// Teraz możemy bezpiecznie wywołać event
-						if (prestashop.emit) {
-							prestashop.emit('updateCart', {
-								reason: {
-									idProduct: parseInt(frameData),
-									idProductAttribute: 0,
-									linkAction: 'add-to-cart'
-								}
-							});
-						}
-					}
-				} else if (response && response.cart) {
-					// Jeśli jednak dostaliśmy JSON z cart (starsza/nowsza wersja PS)
+				// Zaktualizuj obiekt prestashop.cart
+				if (response && response.cart) {
 					prestashop.cart = response.cart;
 
+					// Teraz wywołaj event
 					prestashop.emit('updateCart', {
 						reason: {
 							idProduct: parseInt(frameData),
@@ -2365,18 +2316,18 @@ function initialize() {
 						},
 						resp: response
 					});
+				}
 
-					// Odśwież licznik produktów w headerze
-					if (response.cart.products_count !== undefined) {
-						$('.cart-products-count').text(response.cart.products_count);
-						$('._desktop_cart .cart-products-count').text(response.cart.products_count);
-						$('.blockcart .cart-products-count').text(response.cart.products_count);
-					}
+				// Odśwież licznik produktów w headerze
+				if (response.cart && response.cart.products_count !== undefined) {
+					$('.cart-products-count').text(response.cart.products_count);
+					$('._desktop_cart .cart-products-count').text(response.cart.products_count);
+					$('.blockcart .cart-products-count').text(response.cart.products_count);
+				}
 
-					// Odśwież całkowitą kwotę
-					if (response.cart.totals) {
-						$('.cart-total .value').text(response.cart.totals.total.value);
-					}
+				// Odśwież całkowitą kwotę
+				if (response.cart && response.cart.totals) {
+					$('.cart-total .value').text(response.cart.totals.total.value);
 				}
 			},
 			error: function(xhr, status, error) {
