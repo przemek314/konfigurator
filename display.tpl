@@ -2263,10 +2263,10 @@ function initialize() {
 	  }else{
 		comment = comment + 'Ramka: '+frameDataData.reference+',\n';
 	  }
-	   boxInserts.each(function () {
+	   boxInserts.each(function () {	
 		  let data = jQuery(this).data();
 		  comment = comment + ' '+data.reference+',';
-
+		  
 	  });
 	  if(orientation == 'horizontal'){
 		  comment = comment + '\n Orientacja: pozioma';
@@ -2281,72 +2281,6 @@ function initialize() {
 		  let productIndex = productsArray.findIndex(item => item.reference == lastIndex);
 		  frameData = productsArray[productIndex].id;
 	  }
-
-	  // Funkcja wyświetlająca komunikat po zakończeniu
-	  function showSuccessMessage() {
-		jQuery('.progress-bar').hide();
-		jQuery('.footer').hide();
-		jQuery('.add-to-cart-button').hide();
-		rightSideContent.append('<p class="mt-4"><b>Produkty zostały dodane do koszyka.</b></p>');
-		rightSideContent.append('<a href="/koszyk" target="_blank" id="ignorePDF" class="show-cart">Zobacz koszyk</a>');
-		rightSideContent.append('<a href="/konfigurator" id="ignorePDF" class="new-config">Nowa konfiguracja</a>');
-
-		// Odśwież koszyk PrestaShop - pobierz aktualne dane i zaktualizuj widget
-		$.ajax({
-			type: 'POST',
-			url: prestashop.urls.base_url + 'index.php?controller=cart',
-			data: {
-				ajax: 1,
-				action: 'refresh'
-			},
-			dataType: 'json',
-			success: function(response) {
-				console.log("Cart refreshed, response:", response);
-
-				// Zaktualizuj obiekt prestashop.cart
-				if (response && response.cart) {
-					prestashop.cart = response.cart;
-
-					// Teraz wywołaj event
-					prestashop.emit('updateCart', {
-						reason: {
-							idProduct: parseInt(frameData),
-							idProductAttribute: 0,
-							linkAction: 'add-to-cart'
-						},
-						resp: response
-					});
-				}
-
-				// Odśwież licznik produktów w headerze
-				if (response.cart && response.cart.products_count !== undefined) {
-					$('.cart-products-count').text(response.cart.products_count);
-					$('._desktop_cart .cart-products-count').text(response.cart.products_count);
-					$('.blockcart .cart-products-count').text(response.cart.products_count);
-				}
-
-				// Odśwież całkowitą kwotę
-				if (response.cart && response.cart.totals) {
-					$('.cart-total .value').text(response.cart.totals.total.value);
-				}
-			},
-			error: function(xhr, status, error) {
-				console.log("Error refreshing cart, but products were added. Trying alternative method...");
-
-				// Alternatywna metoda - po prostu zaktualizuj licznik bezpośrednio pobierając stronę koszyka
-				$.get(prestashop.urls.base_url + 'index.php?controller=cart', function(html) {
-					var parser = new DOMParser();
-					var doc = parser.parseFromString(html, 'text/html');
-					var count = $(doc).find('.cart-products-count').first().text();
-					if (count) {
-						$('.cart-products-count').text(count);
-					}
-					console.log("Updated cart count from page:", count);
-				});
-			}
-		});
-	  }
-
 	  if(frameData){
 		  $.ajax({
 			type: 'POST',
@@ -2363,22 +2297,10 @@ function initialize() {
 			success: function(response) {
 				if (response.hasError) {
 					console.log("Error adding to cart:", response.errors);
-					alert("Błąd dodawania do koszyka: " + JSON.stringify(response.errors));
 				} else {
-					console.log("Frame added successfully:", response);
-
-					let boxInsertsArray = boxInserts.toArray();
-					let completedRequests = 0;
-					let totalRequests = boxInsertsArray.length;
-
-					// Jeśli nie ma dodatkowych produktów, wyświetl komunikat od razu
-					if (totalRequests === 0) {
-						showSuccessMessage();
-						return;
-					}
-
-					// Dodaj pozostałe produkty
-					boxInserts.each(function () {
+					console.log("Products added successfully:", response);
+					//alert("Products added to cart!");
+					boxInserts.each(function () {		  
 					  let product = {
 						  qty:parseInt(multiply),
 						  id_product: parseInt(jQuery(this).val())
@@ -2391,45 +2313,41 @@ function initialize() {
 							ajax: 1,
 							action: 'update',
 							add: 1,
-							qty: product.qty,
-							id_product: product.id_product
+							qty: product.qty,  // Custom flag for clarity
+							id_product: product.id_product // Send as JSON
 						},
 						dataType: 'json',
 						success: function(response) {
-							completedRequests++;
 							if (response.hasError) {
-								console.log("Error adding product to cart:", response.errors);
+								console.log("Error adding to cart:", response.errors);
 							} else {
-								console.log("Product added successfully:", response);
-							}
-
-							// Po dodaniu wszystkich produktów, wyświetl komunikat
-							if (completedRequests === totalRequests) {
-								showSuccessMessage();
+								console.log("Products added successfully:", response);
+								//alert("Products added to cart!");
 							}
 						},
 						error: function(xhr, status, error) {
-							console.log("AJAX Error:", xhr, status, error);
-							completedRequests++;
-
-							// Wyświetl komunikat nawet jeśli były błędy
-							if (completedRequests === totalRequests) {
-								showSuccessMessage();
-							}
+							console.log("AJAX Error:", error);
 						}
 					});
 					});
 				}
 			},
 			error: function(xhr, status, error) {
-				console.log("AJAX Error adding frame:", xhr, status, error);
-				alert("Błąd podczas dodawania ramki do koszyka. Sprawdź konsolę.");
+				console.log("AJAX Error:", error);
 			}
 		});
-	  } else {
-		// Jeśli nie ma frameData, wyświetl błąd
-		alert('Błąd: nie wybrano ramki');
 	  }
+
+		jQuery('.progress-bar').hide();
+		jQuery('.footer').hide();
+		jQuery('.add-to-cart-button').hide();
+		rightSideContent.append('<p class="mt-4"><b>Produkty zostały dodane do koszyka.</b></p>');
+		rightSideContent.append('<p class="mt-2">Przekierowanie do koszyka...</p>');
+
+		// Przekieruj do koszyka po 1.5 sekundy (żeby użytkownik zobaczył komunikat)
+		setTimeout(function() {
+			window.location.href = '/koszyk';
+		}, 1500);
 
     });
 	const qr = jQuery('<div>').attr('id','qrcode');
