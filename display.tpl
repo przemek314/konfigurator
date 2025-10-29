@@ -2273,6 +2273,9 @@ function initialize() {
 	  }else{
 		  comment = comment + '\n Orientacja: pionowa';
 	  }
+	  // Dodaj informację o ilości
+	  comment = comment + '\n Ilość: ' + multiply + ' szt.';
+
 	  if(note != ''){
 		  comment = comment + '\n Komentarz/opinia:'+note;
 	  }
