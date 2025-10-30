@@ -2279,10 +2279,6 @@ function initialize() {
 	  if(note != ''){
 		  comment = comment + '\n Komentarz/opinia:'+note;
 	  }
-	  let products = [];
-	  let framePrice = 0;
-	  let totalPrice = 0;
-	  let configDetails = '';
 
 	  // Zbierz dane ramki
 	  if(lastIndex != 'none' && lastIndex != ''){
@@ -2292,43 +2288,7 @@ function initialize() {
 		  frameData = jQuery("input[name=frameData]").val();
 	  }
 
-	  // NOWE: Pobierz ceny z elementów DOM (tam gdzie są wyświetlane)
-	  framePrice = getTotalAmountFromDOM();
-
-	  // Buduj szczegółowy opis
-	  configDetails = 'Orientacja: ' + (orientation == 'horizontal' ? 'pozioma' : 'pionowa') + '\n\n';
-	  configDetails += 'Produkty:\n';
-
-	  // Dodaj ramkę do opisu
-	  let frameName = lastIndex != 'none' && lastIndex != '' ? lastIndex : frameDataData.reference;
-	  configDetails += ' • Ramka ' + frameName + '\n';
-
-	  // Zbierz wkładki
-	  boxInserts.each(function () {
-		  let insertData = jQuery(this).data();
-		  configDetails += ' • ' + insertData.reference + '\n';
-	  });
-
-	  configDetails += '\nŁączna cena: ' + framePrice.toFixed(2) + ' zł';
-	  if(note != ''){
-		  configDetails += '\n\nKomentarz: ' + note;
-	  }
-
-	  console.log('Configuration details:', configDetails);
-	  console.log('Total price:', framePrice);
-
-	  // Funkcja pobierająca cenę z DOM (gdzie jest wyświetlana użytkownikowi)
-	  function getTotalAmountFromDOM() {
-		  let priceText = jQuery("#totalAmount").text();
-		  console.log('Cena z DOM:', priceText);
-
-		  // Usuń "zł" i zamień "," na "."
-		  let priceNumber = parseFloat(priceText.replace('zł', '').replace(',', '.').trim());
-
-		  return isNaN(priceNumber) ? 0 : priceNumber;
-	  }
-
-	  // Dodaj JEDEN wirtualny produkt "Własna konfiguracja" (ID 3070)
+	  // Dodaj produkty osobno - najpierw ramkę z komentarzem, potem wkładki
 	  if(frameData){
 		  $.ajax({
 			type: 'POST',
@@ -2338,97 +2298,50 @@ function initialize() {
 				action: 'update',
 				add: 1,
 				qty: parseInt(multiply),
-				cart_comment: isCategoryTouch ? configDetails : '', // NOWE: szczegóły z ceną
-				id_product: 3070, // ID produktu "Własna konfiguracja"
+				cart_comment: isCategoryTouch ? comment : '', // Dodaj komentarz tylko do ramki
+				id_product: parseInt(frameData)
 			},
 			dataType: 'json',
 			success: function(response) {
 				if (response.hasError) {
-					console.log("Error adding configuration to cart:", response.errors);
-					alert("Błąd dodawania konfiguracji: " + JSON.stringify(response.errors));
+					console.log("Error adding frame to cart:", response.errors);
 				} else {
-					console.log("Configuration added successfully:", response);
+					console.log("Frame added successfully:", response);
 				}
 			},
 			error: function(xhr, status, error) {
-				console.log("AJAX Error:", xhr, status, error);
+				console.log("AJAX Error adding frame:", xhr, status, error);
 			}
 		});
 	  }
 
-	  // Funkcja pomocnicza do znajdowania ceny produktu
-	  function findProductPrice(productId, productRef) {
-		  console.log('Szukam ceny dla:', productId, productRef);
+	  // Dodaj każdą wkładkę osobno (bez komentarza)
+	  boxInserts.each(function () {
+		  $.ajax({
+			type: 'POST',
+			url: prestashop.urls.base_url + 'index.php?controller=cart',
+			data: {
+				ajax: 1,
+				action: 'update',
+				add: 1,
+				qty: parseInt(multiply),
+				id_product: parseInt(jQuery(this).val())
+			},
+			dataType: 'json',
+			success: function(response) {
+				if (response.hasError) {
+					console.log("Error adding insert to cart:", response.errors);
+				} else {
+					console.log("Insert added successfully:", response);
+				}
+			},
+			error: function(xhr, status, error) {
+				console.log("AJAX Error adding insert:", xhr, status, error);
+			}
+		});
+	  });
 
-		  // Szukaj w configuratoeData
-		  let price = 0;
-
-		  // NAJPIERW sprawdź w productsArray (ma ceny z PHP)
-		  if(typeof productsArray !== 'undefined') {
-			  for(let i = 0; i < productsArray.length; i++) {
-				  if(productsArray[i].id == productId || productsArray[i].reference == productRef) {
-					  console.log('Znaleziono w productsArray:', productsArray[i]);
-					  // Cena może być jako price, price_amount, lub trzeba pobrać z PrestaShop
-					  price = productsArray[i].price || 0;
-					  if(price > 0) return price;
-				  }
-			  }
-		  }
-
-		  // Przeszukaj wszystkie sekcje configuratoeData
-		  if(typeof configuratoeData !== 'undefined') {
-			  // Mechaniczne
-			  if(configuratoeData.mechanical && configuratoeData.mechanical.frame) {
-				  configuratoeData.mechanical.frame.options.forEach(function(option) {
-					  if(option.products) {
-						  option.products.forEach(function(prod) {
-							  if(prod.id == productId || prod.reference == productRef) {
-								  console.log('Znaleziono w mechanical.frame:', prod);
-								  price = prod.price || 0;
-							  }
-						  });
-					  }
-				  });
-			  }
-
-			  // Dotykowe
-			  if(configuratoeData.touch && configuratoeData.touch.frame) {
-				  configuratoeData.touch.frame.options.forEach(function(option) {
-					  if(option.products) {
-						  option.products.forEach(function(prod) {
-							  if(prod.id == productId || prod.reference == productRef) {
-								  console.log('Znaleziono w touch.frame:', prod);
-								  price = prod.price || 0;
-							  }
-						  });
-					  }
-				  });
-			  }
-
-			  // Boxes (wkładki)
-			  if(configuratoeData.mechanical && configuratoeData.mechanical.boxes) {
-				  configuratoeData.mechanical.boxes.options.forEach(function(prod) {
-					  if(prod.id == productId || prod.reference == productRef) {
-						  console.log('Znaleziono w mechanical.boxes:', prod);
-						  price = prod.price || 0;
-					  }
-				  });
-			  }
-			  if(configuratoeData.touch && configuratoeData.touch.boxes) {
-				  configuratoeData.touch.boxes.options.forEach(function(prod) {
-					  if(prod.id == productId || prod.reference == productRef) {
-						  console.log('Znaleziono w touch.boxes:', prod);
-						  price = prod.price || 0;
-					  }
-				  });
-			  }
-		  }
-
-		  console.log('Zwracam cenę:', price);
-		  return price;
-	  }
-
-		jQuery('.progress-bar').hide();
+	  jQuery('.progress-bar').hide();
 		jQuery('.footer').hide();
 		jQuery('.add-to-cart-button').hide();
 		rightSideContent.append('<p class="mt-4"><b>Produkty zostały dodane do koszyka.</b></p>');
