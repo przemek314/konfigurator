@@ -2302,26 +2302,39 @@ function initialize() {
 	  console.log("Final frameData:", frameData);
 	  console.log("Comment to send:", isCategoryTouch ? comment : '(brak - mechaniczny)');
 
-	  // Dodaj produkty osobno - najpierw ramkę z komentarzem, potem wkładki
+	  // Dodaj produkty osobno - najpierw ramkę z customization (dla touch), potem wkładki
 	  if(frameData){
 		  console.log(">>> DODAJĘ RAMKĘ id_product:", parseInt(frameData), "qty:", parseInt(multiply));
+
+		  let frameRequestData = {
+			ajax: 1,
+			action: 'update',
+			add: 1,
+			qty: parseInt(multiply),
+			id_product: parseInt(frameData),
+			id_customization: 0 // 0 = nowa customization
+		  };
+
+		  // Dla kategorii touch - dodaj konfigurację jako customization
+		  if(isCategoryTouch) {
+			  frameRequestData['textField[1]'] = comment; // textField[1] = pierwsze pole tekstowe customization
+			  console.log(">>> TOUCH: Dodaję customization:", comment);
+		  }
+
 		  $.ajax({
 			type: 'POST',
 			url: prestashop.urls.base_url + 'index.php?controller=cart',
-			data: {
-				ajax: 1,
-				action: 'update',
-				add: 1,
-				qty: parseInt(multiply),
-				cart_comment: isCategoryTouch ? comment : '', // Dodaj komentarz tylko do ramki
-				id_product: parseInt(frameData)
-			},
+			data: frameRequestData,
 			dataType: 'json',
 			success: function(response) {
 				if (response.hasError) {
 					console.log("Error adding frame to cart:", response.errors);
+					alert("Błąd dodawania ramki: " + JSON.stringify(response.errors));
 				} else {
 					console.log("Frame added successfully:", response);
+					if(response.id_customization) {
+						console.log("Customization ID:", response.id_customization);
+					}
 				}
 			},
 			error: function(xhr, status, error) {
