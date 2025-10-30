@@ -2338,10 +2338,8 @@ function initialize() {
 				action: 'update',
 				add: 1,
 				qty: parseInt(multiply),
-				cart_comment: isCategoryTouch ? comment:'', // stary format dla kompatybilności
+				cart_comment: isCategoryTouch ? configDetails : '', // NOWE: szczegóły z ceną
 				id_product: 3070, // ID produktu "Własna konfiguracja"
-				// Próba dodania customization (może nie zadziałać bez konfiguracji produktu)
-				'textField[0]': configDetails
 			},
 			dataType: 'json',
 			success: function(response) {
