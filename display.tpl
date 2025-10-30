@@ -2288,40 +2288,45 @@ function initialize() {
 	  if(lastIndex != 'none' && lastIndex != ''){
 		  let productIndex = productsArray.findIndex(item => item.reference == lastIndex);
 		  frameData = productsArray[productIndex].id;
-		  // Szukaj ceny ramki w configuratoeData
-		  framePrice = findProductPrice(frameData, lastIndex);
 	  } else {
 		  frameData = jQuery("input[name=frameData]").val();
-		  framePrice = findProductPrice(frameData, frameDataData.reference);
 	  }
 
-	  totalPrice = parseFloat(framePrice);
+	  // NOWE: Pobierz ceny z elementów DOM (tam gdzie są wyświetlane)
+	  framePrice = getTotalAmountFromDOM();
 
-	  // Buduj szczegółowy opis z cenami
+	  // Buduj szczegółowy opis
 	  configDetails = 'Orientacja: ' + (orientation == 'horizontal' ? 'pozioma' : 'pionowa') + '\n\n';
 	  configDetails += 'Produkty:\n';
 
 	  // Dodaj ramkę do opisu
 	  let frameName = lastIndex != 'none' && lastIndex != '' ? lastIndex : frameDataData.reference;
-	  configDetails += ' • Ramka ' + frameName + ' (' + framePrice.toFixed(2) + ' zł)\n';
+	  configDetails += ' • Ramka ' + frameName + '\n';
 
-	  // Zbierz wkładki i ich ceny
+	  // Zbierz wkładki
 	  boxInserts.each(function () {
-		  let insertId = parseInt(jQuery(this).val());
 		  let insertData = jQuery(this).data();
-		  let insertPrice = findProductPrice(insertId, insertData.reference);
-
-		  totalPrice += parseFloat(insertPrice);
-		  configDetails += ' • ' + insertData.reference + ' (' + insertPrice.toFixed(2) + ' zł)\n';
+		  configDetails += ' • ' + insertData.reference + '\n';
 	  });
 
-	  configDetails += '\nŁączna cena: ' + totalPrice.toFixed(2) + ' zł';
+	  configDetails += '\nŁączna cena: ' + framePrice.toFixed(2) + ' zł';
 	  if(note != ''){
 		  configDetails += '\n\nKomentarz: ' + note;
 	  }
 
 	  console.log('Configuration details:', configDetails);
-	  console.log('Total price:', totalPrice);
+	  console.log('Total price:', framePrice);
+
+	  // Funkcja pobierająca cenę z DOM (gdzie jest wyświetlana użytkownikowi)
+	  function getTotalAmountFromDOM() {
+		  let priceText = jQuery("#totalAmount").text();
+		  console.log('Cena z DOM:', priceText);
+
+		  // Usuń "zł" i zamień "," na "."
+		  let priceNumber = parseFloat(priceText.replace('zł', '').replace(',', '.').trim());
+
+		  return isNaN(priceNumber) ? 0 : priceNumber;
+	  }
 
 	  // Dodaj JEDEN wirtualny produkt "Własna konfiguracja" (ID 3070)
 	  if(frameData){
