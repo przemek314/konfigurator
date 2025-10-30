@@ -2258,6 +2258,15 @@ function initialize() {
 	  const frameDataData = jQuery("input[name=frameData]").data();
 	  const orientation = jQuery("input[name=orientation]").val();
 	  const boxInserts = jQuery("input[name=boxInsert]");
+	  const category = jQuery("input[name=category]").val();
+	  const isCategoryTouch = category === "touch";
+
+	  console.log("=== KONFIGURACJA DEBUG ===");
+	  console.log("Category:", category);
+	  console.log("isCategoryTouch:", isCategoryTouch);
+	  console.log("frameData initial:", frameData);
+	  console.log("multiply:", multiply);
+	  console.log("boxInserts count:", boxInserts.length);
 	  if(lastIndex != 'none' && lastIndex != ''){
 		  comment = comment + 'Ramka: '+lastIndex+',\n';
 	  }else{
@@ -2284,12 +2293,18 @@ function initialize() {
 	  if(lastIndex != 'none' && lastIndex != ''){
 		  let productIndex = productsArray.findIndex(item => item.reference == lastIndex);
 		  frameData = productsArray[productIndex].id;
+		  console.log("lastIndex:", lastIndex, "productIndex:", productIndex, "frameData:", frameData);
 	  } else {
 		  frameData = jQuery("input[name=frameData]").val();
+		  console.log("Using frameData from input:", frameData);
 	  }
+
+	  console.log("Final frameData:", frameData);
+	  console.log("Comment to send:", isCategoryTouch ? comment : '(brak - mechaniczny)');
 
 	  // Dodaj produkty osobno - najpierw ramkę z komentarzem, potem wkładki
 	  if(frameData){
+		  console.log(">>> DODAJĘ RAMKĘ id_product:", parseInt(frameData), "qty:", parseInt(multiply));
 		  $.ajax({
 			type: 'POST',
 			url: prestashop.urls.base_url + 'index.php?controller=cart',
@@ -2316,7 +2331,9 @@ function initialize() {
 	  }
 
 	  // Dodaj każdą wkładkę osobno (bez komentarza)
-	  boxInserts.each(function () {
+	  boxInserts.each(function (index) {
+		  let insertId = parseInt(jQuery(this).val());
+		  console.log(">>> DODAJĘ WKŁADKĘ", index + 1, "id_product:", insertId, "qty:", parseInt(multiply));
 		  $.ajax({
 			type: 'POST',
 			url: prestashop.urls.base_url + 'index.php?controller=cart',
