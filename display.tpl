@@ -2280,10 +2280,50 @@ function initialize() {
 		  comment = comment + '\n Komentarz/opinia:'+note;
 	  }
 	  let products = [];
+	  let framePrice = 0;
+	  let totalPrice = 0;
+	  let configDetails = '';
+
+	  // Zbierz dane ramki
 	  if(lastIndex != 'none' && lastIndex != ''){
 		  let productIndex = productsArray.findIndex(item => item.reference == lastIndex);
 		  frameData = productsArray[productIndex].id;
+		  // Szukaj ceny ramki w configuratoeData
+		  framePrice = findProductPrice(frameData, lastIndex);
+	  } else {
+		  frameData = jQuery("input[name=frameData]").val();
+		  framePrice = findProductPrice(frameData, frameDataData.reference);
 	  }
+
+	  totalPrice = parseFloat(framePrice);
+
+	  // Buduj szczegółowy opis z cenami
+	  configDetails = 'Orientacja: ' + (orientation == 'horizontal' ? 'pozioma' : 'pionowa') + '\n\n';
+	  configDetails += 'Produkty:\n';
+
+	  // Dodaj ramkę do opisu
+	  let frameName = lastIndex != 'none' && lastIndex != '' ? lastIndex : frameDataData.reference;
+	  configDetails += ' • Ramka ' + frameName + ' (' + framePrice.toFixed(2) + ' zł)\n';
+
+	  // Zbierz wkładki i ich ceny
+	  boxInserts.each(function () {
+		  let insertId = parseInt(jQuery(this).val());
+		  let insertData = jQuery(this).data();
+		  let insertPrice = findProductPrice(insertId, insertData.reference);
+
+		  totalPrice += parseFloat(insertPrice);
+		  configDetails += ' • ' + insertData.reference + ' (' + insertPrice.toFixed(2) + ' zł)\n';
+	  });
+
+	  configDetails += '\nŁączna cena: ' + totalPrice.toFixed(2) + ' zł';
+	  if(note != ''){
+		  configDetails += '\n\nKomentarz: ' + note;
+	  }
+
+	  console.log('Configuration details:', configDetails);
+	  console.log('Total price:', totalPrice);
+
+	  // Dodaj JEDEN wirtualny produkt "Własna konfiguracja" (ID 3070)
 	  if(frameData){
 		  $.ajax({
 			type: 'POST',
@@ -2292,53 +2332,78 @@ function initialize() {
 				ajax: 1,
 				action: 'update',
 				add: 1,
-				qty: parseInt(multiply),  // Custom flag for clarity
-				cart_comment: isCategoryTouch ? comment:'',
-				id_product: parseInt(frameData) // Send as JSON
+				qty: parseInt(multiply),
+				cart_comment: isCategoryTouch ? comment:'', // stary format dla kompatybilności
+				id_product: 3070, // ID produktu "Własna konfiguracja"
+				// Próba dodania customization (może nie zadziałać bez konfiguracji produktu)
+				'textField[0]': configDetails
 			},
 			dataType: 'json',
 			success: function(response) {
 				if (response.hasError) {
-					console.log("Error adding to cart:", response.errors);
+					console.log("Error adding configuration to cart:", response.errors);
+					alert("Błąd dodawania konfiguracji: " + JSON.stringify(response.errors));
 				} else {
-					console.log("Products added successfully:", response);
-					//alert("Products added to cart!");
-					boxInserts.each(function () {		  
-					  let product = {
-						  qty:parseInt(multiply),
-						  id_product: parseInt(jQuery(this).val())
-					  }
-					  products.push(product);
-					  $.ajax({
-						type: 'POST',
-						url: prestashop.urls.base_url + 'index.php?controller=cart',
-						data: {
-							ajax: 1,
-							action: 'update',
-							add: 1,
-							qty: product.qty,  // Custom flag for clarity
-							id_product: product.id_product // Send as JSON
-						},
-						dataType: 'json',
-						success: function(response) {
-							if (response.hasError) {
-								console.log("Error adding to cart:", response.errors);
-							} else {
-								console.log("Products added successfully:", response);
-								//alert("Products added to cart!");
-							}
-						},
-						error: function(xhr, status, error) {
-							console.log("AJAX Error:", error);
-						}
-					});
-					});
+					console.log("Configuration added successfully:", response);
 				}
 			},
 			error: function(xhr, status, error) {
-				console.log("AJAX Error:", error);
+				console.log("AJAX Error:", xhr, status, error);
 			}
 		});
+	  }
+
+	  // Funkcja pomocnicza do znajdowania ceny produktu
+	  function findProductPrice(productId, productRef) {
+		  // Szukaj w configuratoeData
+		  let price = 0;
+
+		  // Przeszukaj wszystkie sekcje configuratoeData
+		  if(typeof configuratoeData !== 'undefined') {
+			  // Mechaniczne
+			  if(configuratoeData.mechanical && configuratoeData.mechanical.frame) {
+				  configuratoeData.mechanical.frame.options.forEach(function(option) {
+					  if(option.products) {
+						  option.products.forEach(function(prod) {
+							  if(prod.id == productId || prod.reference == productRef) {
+								  price = prod.price || 0;
+							  }
+						  });
+					  }
+				  });
+			  }
+
+			  // Dotykowe
+			  if(configuratoeData.touch && configuratoeData.touch.frame) {
+				  configuratoeData.touch.frame.options.forEach(function(option) {
+					  if(option.products) {
+						  option.products.forEach(function(prod) {
+							  if(prod.id == productId || prod.reference == productRef) {
+								  price = prod.price || 0;
+							  }
+						  });
+					  }
+				  });
+			  }
+
+			  // Boxes (wkładki)
+			  if(configuratoeData.mechanical && configuratoeData.mechanical.boxes) {
+				  configuratoeData.mechanical.boxes.options.forEach(function(prod) {
+					  if(prod.id == productId || prod.reference == productRef) {
+						  price = prod.price || 0;
+					  }
+				  });
+			  }
+			  if(configuratoeData.touch && configuratoeData.touch.boxes) {
+				  configuratoeData.touch.boxes.options.forEach(function(prod) {
+					  if(prod.id == productId || prod.reference == productRef) {
+						  price = prod.price || 0;
+					  }
+				  });
+			  }
+		  }
+
+		  return price;
 	  }
 
 		jQuery('.progress-bar').hide();
