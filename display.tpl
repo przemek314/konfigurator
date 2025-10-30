@@ -2355,8 +2355,22 @@ function initialize() {
 
 	  // Funkcja pomocnicza do znajdowania ceny produktu
 	  function findProductPrice(productId, productRef) {
+		  console.log('Szukam ceny dla:', productId, productRef);
+
 		  // Szukaj w configuratoeData
 		  let price = 0;
+
+		  // NAJPIERW sprawdź w productsArray (ma ceny z PHP)
+		  if(typeof productsArray !== 'undefined') {
+			  for(let i = 0; i < productsArray.length; i++) {
+				  if(productsArray[i].id == productId || productsArray[i].reference == productRef) {
+					  console.log('Znaleziono w productsArray:', productsArray[i]);
+					  // Cena może być jako price, price_amount, lub trzeba pobrać z PrestaShop
+					  price = productsArray[i].price || 0;
+					  if(price > 0) return price;
+				  }
+			  }
+		  }
 
 		  // Przeszukaj wszystkie sekcje configuratoeData
 		  if(typeof configuratoeData !== 'undefined') {
@@ -2366,6 +2380,7 @@ function initialize() {
 					  if(option.products) {
 						  option.products.forEach(function(prod) {
 							  if(prod.id == productId || prod.reference == productRef) {
+								  console.log('Znaleziono w mechanical.frame:', prod);
 								  price = prod.price || 0;
 							  }
 						  });
@@ -2379,6 +2394,7 @@ function initialize() {
 					  if(option.products) {
 						  option.products.forEach(function(prod) {
 							  if(prod.id == productId || prod.reference == productRef) {
+								  console.log('Znaleziono w touch.frame:', prod);
 								  price = prod.price || 0;
 							  }
 						  });
@@ -2390,6 +2406,7 @@ function initialize() {
 			  if(configuratoeData.mechanical && configuratoeData.mechanical.boxes) {
 				  configuratoeData.mechanical.boxes.options.forEach(function(prod) {
 					  if(prod.id == productId || prod.reference == productRef) {
+						  console.log('Znaleziono w mechanical.boxes:', prod);
 						  price = prod.price || 0;
 					  }
 				  });
@@ -2397,12 +2414,14 @@ function initialize() {
 			  if(configuratoeData.touch && configuratoeData.touch.boxes) {
 				  configuratoeData.touch.boxes.options.forEach(function(prod) {
 					  if(prod.id == productId || prod.reference == productRef) {
+						  console.log('Znaleziono w touch.boxes:', prod);
 						  price = prod.price || 0;
 					  }
 				  });
 			  }
 		  }
 
+		  console.log('Zwracam cenę:', price);
 		  return price;
 	  }
 
