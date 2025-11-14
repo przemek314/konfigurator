@@ -2282,6 +2282,7 @@ function initialize() {
 		  frameData = productsArray[productIndex].id;
 	  }
 	  if(frameData){
+		  console.log('Adding to cart with token:', prestashop.static_token || prestashop.token);
 		  $.ajax({
 			type: 'POST',
 			url: prestashop.urls.base_url + 'index.php?controller=cart',
@@ -2291,7 +2292,8 @@ function initialize() {
 				add: 1,
 				qty: parseInt(multiply),  // Custom flag for clarity
 				cart_comment: isCategoryTouch ? comment:'',
-				id_product: parseInt(frameData) // Send as JSON
+				id_product: parseInt(frameData), // Send as JSON
+				token: prestashop.static_token || prestashop.token // Token dla zalogowanych użytkowników
 			},
 			dataType: 'json',
 			success: function(response) {
@@ -2314,7 +2316,8 @@ function initialize() {
 							action: 'update',
 							add: 1,
 							qty: product.qty,  // Custom flag for clarity
-							id_product: product.id_product // Send as JSON
+							id_product: product.id_product, // Send as JSON
+							token: prestashop.static_token || prestashop.token // Token dla zalogowanych użytkowników
 						},
 						dataType: 'json',
 						success: function(response) {
