@@ -2302,37 +2302,72 @@ function initialize() {
 				} else {
 					console.log("Products added successfully:", response);
 					//alert("Products added to cart!");
-					boxInserts.each(function () {		  
-					  let product = {
-						  qty:parseInt(multiply),
-						  id_product: parseInt(jQuery(this).val())
-					  }
-					  products.push(product);
-					  $.ajax({
-						type: 'POST',
-						url: prestashop.urls.base_url + 'index.php?controller=cart',
-						data: {
-							ajax: 1,
-							action: 'update',
-							add: 1,
-							qty: product.qty,  // Custom flag for clarity
-							id_product: product.id_product, // Send as JSON
-							token: prestashop.static_token || prestashop.token // Token dla zalogowanych użytkowników
-						},
-						dataType: 'json',
-						success: function(response) {
-							if (response.hasError) {
-								console.log("Error adding to cart:", response.errors);
-							} else {
-								console.log("Products added successfully:", response);
-								//alert("Products added to cart!");
+
+					// Licznik do śledzenia zakończonych requestów
+					var totalInserts = boxInserts.length;
+					var completedInserts = 0;
+
+					// Funkcja wywoływana po dodaniu wszystkich produktów
+					function allProductsAdded() {
+						jQuery('.progress-bar').hide();
+						jQuery('.footer').hide();
+						jQuery('.add-to-cart-button').hide();
+						rightSideContent.append('<p class="mt-4"><b>Produkty zostały dodane do koszyka.</b></p>');
+						rightSideContent.append('<p>Przekierowanie do koszyka...</p>');
+
+						// Automatyczne przekierowanie do koszyka po 1.5 sekundy
+						setTimeout(function() {
+							window.location.href = '/koszyk';
+						}, 1500);
+					}
+
+					// Jeśli nie ma wkładek, od razu przekieruj
+					if (totalInserts === 0) {
+						allProductsAdded();
+					} else {
+						// Dodaj wkładki
+						boxInserts.each(function () {
+						  let product = {
+							  qty:parseInt(multiply),
+							  id_product: parseInt(jQuery(this).val())
+						  }
+						  products.push(product);
+						  $.ajax({
+							type: 'POST',
+							url: prestashop.urls.base_url + 'index.php?controller=cart',
+							data: {
+								ajax: 1,
+								action: 'update',
+								add: 1,
+								qty: product.qty,  // Custom flag for clarity
+								id_product: product.id_product, // Send as JSON
+								token: prestashop.static_token || prestashop.token // Token dla zalogowanych użytkowników
+							},
+							dataType: 'json',
+							success: function(response) {
+								if (response.hasError) {
+									console.log("Error adding to cart:", response.errors);
+								} else {
+									console.log("Products added successfully:", response);
+									//alert("Products added to cart!");
+								}
+								completedInserts++;
+								// Sprawdź czy wszystkie wkładki zostały dodane
+								if (completedInserts === totalInserts) {
+									allProductsAdded();
+								}
+							},
+							error: function(xhr, status, error) {
+								console.log("AJAX Error:", error);
+								completedInserts++;
+								// Nawet przy błędzie, sprawdź czy kontynuować
+								if (completedInserts === totalInserts) {
+									allProductsAdded();
+								}
 							}
-						},
-						error: function(xhr, status, error) {
-							console.log("AJAX Error:", error);
-						}
-					});
-					});
+						});
+						});
+					}
 				}
 			},
 			error: function(xhr, status, error) {
@@ -2340,13 +2375,6 @@ function initialize() {
 			}
 		});
 	  }
-	  
-		jQuery('.progress-bar').hide();
-		jQuery('.footer').hide();
-		jQuery('.add-to-cart-button').hide();
-		rightSideContent.append('<p class="mt-4"><b>Produkty zostały dodane do koszyka.</b></p>');
-		rightSideContent.append('<a href="/koszyk" target="_blank" id="ignorePDF" class="show-cart">Zobacz koszyk</a>');
-		rightSideContent.append('<a href="/konfigurator" id="ignorePDF" class="new-config">Nowa konfiguracja</a>');
 		
     });
 	const qr = jQuery('<div>').attr('id','qrcode');
